@@ -1,0 +1,88 @@
+# Clase base: Animal
+class Animal:
+    def __init__(self, nombre, edad):
+        self._nombre = nombre  # Atributo encapsulado
+        self._edad = edad      # Atributo encapsulado
+
+    # Métodos getter y setter para nombre
+    def get_nombre(self):
+        return self._nombre
+
+    def set_nombre(self, nuevo_nombre):
+        self._nombre = nuevo_nombre
+
+    # Métodos getter y setter para edad
+    def get_edad(self):
+        return self._edad
+
+    def set_edad(self, nueva_edad):
+        self._edad = nueva_edad
+
+    # Método genérico (será sobrescrito: polimorfismo)
+    def hacer_sonido(self):
+        return "Sonido indefinido"
+
+    def descripcion(self):
+        return f"{self._nombre} tiene {self._edad} años."
+
+
+# Clase derivada: Perro
+class Perro(Animal):
+    def __init__(self, nombre, edad, raza):
+        super().__init__(nombre, edad)
+        self._raza = raza
+
+    def get_raza(self):
+        return self._raza
+
+    def set_raza(self, nueva_raza):
+        self._raza = nueva_raza
+
+    # Polimorfismo: sobrescritura del método
+    def hacer_sonido(self):
+        return "¡Guau!"
+
+    def descripcion(self):
+        return f"{self._nombre} es un perro de raza {self._raza} y tiene {self._edad} años."
+
+
+# Clase derivada: Gato
+class Gato(Animal):
+    def __init__(self, nombre, edad, color):
+        super().__init__(nombre, edad)
+        self._color = color
+
+    def get_color(self):
+        return self._color
+
+    def set_color(self, nuevo_color):
+        self._color = nuevo_color
+
+    # Polimorfismo: sobrescritura del método
+    def hacer_sonido(self):
+        return "¡Miau!"
+
+    def descripcion(self):
+        return f"{self._nombre} es un gato de color {self._color} y tiene {self._edad} años."
+
+
+# --------------------------
+# Prueba del programa
+# --------------------------
+
+# Crear instancias
+perro1 = Perro("Max", 5, "Labrador")
+gato1 = Gato("Mishi", 3, "Blanco")
+
+# Mostrar descripciones
+print(perro1.descripcion())
+print(gato1.descripcion())
+
+# Mostrar sonidos (polimorfismo)
+print(perro1.hacer_sonido())
+print(gato1.hacer_sonido())
+
+# Uso de encapsulación
+print("Nombre del perro:", perro1.get_nombre())
+perro1.set_nombre("Rocky")
+print("Nuevo nombre del perro:", perro1.get_nombre())
