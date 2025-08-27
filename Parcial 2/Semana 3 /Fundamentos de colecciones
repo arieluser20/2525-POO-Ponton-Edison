@@ -1,0 +1,71 @@
+# inventario.py
+import os
+import pickle
+from producto import Producto
+
+class Inventario:
+    """
+    Gestiona una colección de productos usando un diccionario.
+    Permite añadir, eliminar, actualizar, buscar y mostrar productos.
+    """
+    def __init__(self, archivo="inventario.dat"):
+        self.archivo = archivo
+        self.productos = {}  # clave: id, valor: Producto
+        self.cargar_desde_archivo()
+
+    def añadir_producto(self, producto):
+        if producto.id in self.productos:
+            print("Error: Ya existe un producto con ese ID.")
+            return False
+        self.productos[producto.id] = producto
+        print("Producto añadido correctamente.")
+        return True
+
+    def eliminar_producto(self, id_producto):
+        if id_producto in self.productos:
+            del self.productos[id_producto]
+            print("Producto eliminado correctamente.")
+            return True
+        print("Error: No existe un producto con ese ID.")
+        return False
+
+    def actualizar_producto(self, id_producto, cantidad=None, precio=None):
+        producto = self.productos.get(id_producto)
+        if not producto:
+            print("Error: Producto no encontrado.")
+            return False
+        if cantidad is not None:
+            producto.cantidad = cantidad
+        if precio is not None:
+            producto.precio = precio
+        print("Producto actualizado correctamente.")
+        return True
+
+    def buscar_por_nombre(self, nombre):
+        encontrados = [p for p in self.productos.values() if nombre.lower() in p.nombre.lower()]
+        return encontrados
+
+    def mostrar_todos(self):
+        if not self.productos:
+            print("Inventario vacío.")
+        else:
+            for producto in self.productos.values():
+                print(producto)
+
+    def guardar_en_archivo(self):
+        try:
+            with open(self.archivo, "wb") as f:
+                pickle.dump(self.productos, f)
+            print("Inventario guardado correctamente.")
+        except Exception as e:
+            print(f"Error al guardar el inventario: {e}")
+
+    def cargar_desde_archivo(self):
+        if not os.path.exists(self.archivo):
+            return
+        try:
+            with open(self.archivo, "rb") as f:
+                self.productos = pickle.load(f)
+            print("Inventario cargado correctamente.")
+        except Exception as e:
+            print(f"Error al cargar el inventario: {e}")
