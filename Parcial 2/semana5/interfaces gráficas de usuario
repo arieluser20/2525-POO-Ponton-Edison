@@ -1,0 +1,39 @@
+class App:
+    def __init__(self, master):
+        self.master = master
+        master.title("Data Entry Application")
+
+        self.label = Label(master, text="Enter Information:")
+        self.label.pack()
+
+        self.entry = Entry(master)
+        self.entry.pack()
+
+        self.add_button = Button(master, text="Add", command=self.add_data)
+        self.add_button.pack()
+
+        self.clear_button = Button(master, text="Clear", command=self.clear_data)
+        self.clear_button.pack()
+
+        self.data_list = Listbox(master)
+        self.data_list.pack()
+
+        self.data = []
+
+    def add_data(self):
+        info = self.entry.get()
+        if info:
+            self.data.append(info)
+            self.update_listbox()
+            self.entry.delete(0, END)
+
+    def clear_data(self):
+        selected_indices = self.data_list.curselection()
+        for index in reversed(selected_indices):
+            del self.data[index]
+        self.update_listbox()
+
+    def update_listbox(self):
+        self.data_list.delete(0, END)
+        for item in self.data:
+            self.data_list.insert(END, item)
