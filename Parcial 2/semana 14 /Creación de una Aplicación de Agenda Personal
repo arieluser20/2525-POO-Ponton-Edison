@@ -1,0 +1,82 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+from tkcalendar import DateEntry  # Instala con: pip install tkcalendar
+
+class AgendaApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Agenda Personal")
+        self.geometry("600x400")
+        self.resizable(False, False)
+        self.eventos = []
+
+        # Frame principal para TreeView
+        frame_lista = tk.Frame(self)
+        frame_lista.pack(side="top", fill="both", expand=True, padx=10, pady=10)
+
+        # TreeView para mostrar eventos
+        self.tree = ttk.Treeview(frame_lista, columns=("Fecha", "Hora", "Descripción"), show="headings", height=10)
+        self.tree.heading("Fecha", text="Fecha")
+        self.tree.heading("Hora", text="Hora")
+        self.tree.heading("Descripción", text="Descripción")
+        self.tree.column("Fecha", width=100)
+        self.tree.column("Hora", width=80)
+        self.tree.column("Descripción", width=300)
+        self.tree.pack(side="left", fill="y")
+
+        # Scrollbar para TreeView
+        scrollbar = ttk.Scrollbar(frame_lista, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscroll=scrollbar.set)
+        scrollbar.pack(side="left", fill="y")
+
+        # Frame para entrada de datos
+        frame_entrada = tk.Frame(self)
+        frame_entrada.pack(side="top", fill="x", padx=10, pady=5)
+
+        tk.Label(frame_entrada, text="Fecha:").grid(row=0, column=0, padx=5, pady=5)
+        self.entry_fecha = DateEntry(frame_entrada, width=12, background='darkblue',
+                                    foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
+        self.entry_fecha.grid(row=0, column=1, padx=5, pady=5)
+
+        tk.Label(frame_entrada, text="Hora (HH:MM):").grid(row=0, column=2, padx=5, pady=5)
+        self.entry_hora = tk.Entry(frame_entrada, width=10)
+        self.entry_hora.grid(row=0, column=3, padx=5, pady=5)
+
+        tk.Label(frame_entrada, text="Descripción:").grid(row=0, column=4, padx=5, pady=5)
+        self.entry_desc = tk.Entry(frame_entrada, width=25)
+        self.entry_desc.grid(row=0, column=5, padx=5, pady=5)
+
+        # Frame para botones
+        frame_botones = tk.Frame(self)
+        frame_botones.pack(side="top", fill="x", padx=10, pady=10)
+
+        tk.Button(frame_botones, text="Agregar Evento", command=self.agregar_evento, width=15, bg="#2ecc71", fg="white").pack(side="left", padx=5)
+        tk.Button(frame_botones, text="Eliminar Evento Seleccionado", command=self.eliminar_evento, width=22, bg="#e74c3c", fg="white").pack(side="left", padx=5)
+        tk.Button(frame_botones, text="Salir", command=self.quit, width=10, bg="#34495e", fg="white").pack(side="right", padx=5)
+
+    def agregar_evento(self):
+        """Agrega un evento a la agenda y actualiza la lista."""
+        fecha = self.entry_fecha.get()
+        hora = self.entry_hora.get().strip()
+        desc = self.entry_desc.get().strip()
+        if not fecha or not hora or not desc:
+            messagebox.showerror("Error", "Todos los campos son obligatorios.")
+            return
+        self.eventos.append((fecha, hora, desc))
+        self.tree.insert("", "end", values=(fecha, hora, desc))
+        self.entry_hora.delete(0, tk.END)
+        self.entry_desc.delete(0, tk.END)
+
+    def eliminar_evento(self):
+        """Elimina el evento seleccionado tras confirmación."""
+        seleccion = self.tree.selection()
+        if not seleccion:
+            messagebox.showwarning("Sin selección", "Seleccione un evento para eliminar.")
+            return
+        if messagebox.askyesno("Confirmar", "¿Está seguro de eliminar el evento seleccionado?"):
+            for item in seleccion:
+                self.tree.delete(item)
+
+if __name__ == "__main__":
+    app = AgendaApp()
+    app.mainloop()
