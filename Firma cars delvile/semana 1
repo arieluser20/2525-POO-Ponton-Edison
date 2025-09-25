@@ -1,0 +1,942 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog, simpledialog
+import datetime
+import csv
+
+# --- Datos iniciales de ejemplo ---
+
+POLITICAS_INICIALES = [
+    "Todos los empleados deben cambiar sus contraseñas cada 90 días.",
+    "El acceso a datos sensibles está restringido por roles.",
+    "Se requiere autenticación de dos factores para acceso remoto.",
+    "Los dispositivos deben tener antivirus actualizado.",
+    "No se permite compartir credenciales por ningún medio.",
+    "Las conexiones externas deben ser cifradas.",
+    "Se monitorean todos los accesos y actividades en los servidores.",
+    "Los incidentes de seguridad deben reportarse inmediatamente.",
+    "El uso de dispositivos USB está restringido.",
+    "Las políticas se revisan y actualizan trimestralmente."
+]
+
+EMPLEADOS_INICIALES = [
+    {"id": "E001", "nombre": "Ana Torres", "rol": "CEO"},
+    {"id": "E002", "nombre": "Luis Pérez", "rol": "CTO"},
+    {"id": "E003", "nombre": "María Gómez", "rol": "CISO"},
+    {"id": "E004", "nombre": "Carlos Ruiz", "rol": "Desarrollador"},
+    {"id": "E005", "nombre": "Sofía León", "rol": "Analista de Seguridad"},
+]
+
+INCIDENTES_INICIALES = [
+    {"fecha": "2025-09-01", "empleado": "E004", "tipo": "Phishing", "descripcion": "Correo sospechoso recibido."},
+    {"fecha": "2025-09-10", "empleado": "E005", "tipo": "Malware", "descripcion": "Detección de troyano en equipo."},
+]
+
+# --- Clases de gestión de datos ---
+
+class PoliticaManager:
+    """Gestión de políticas de ciberseguridad."""
+    def __init__(self):
+        self.politicas = POLITICAS_INICIALES.copy()
+
+    def agregar(self, texto):
+        self.politicas.append(texto)
+
+    def editar(self, idx, nuevo_texto):
+        self.politicas[idx] = nuevo_texto
+
+    def eliminar(self, idx):
+        del self.politicas[idx]
+
+    def exportar_csv(self, archivo):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Política de Ciberseguridad"])
+            for pol in self.politicas:
+                writer.writerow([pol])
+
+class EmpleadoManager:
+    """Gestión de empleados."""
+    def __init__(self):
+        self.empleados = EMPLEADOS_INICIALES.copy()
+
+    def agregar(self, id_, nombre, rol):
+        self.empleados.append({"id": id_, "nombre": nombre, "rol": rol})
+
+    def eliminar(self, idx):
+        del self.empleados[idx]
+
+    def buscar_por_id(self, id_):
+        for emp in self.empleados:
+            if emp["id"] == id_:
+                return emp
+        return None
+
+    def exportar_csv(self, archivo):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["ID", "Nombre", "Rol"])
+            for emp in self.empleados:
+                writer.writerow([emp["id"], emp["nombre"], emp["rol"]])
+
+class IncidenteManager:
+    """Gestión de incidentes de seguridad."""
+    def __init__(self):
+        self.incidentes = INCIDENTES_INICIALES.copy()
+
+    def agregar(self, fecha, empleado, tipo, descripcion):
+        self.incidentes.append({
+            "fecha": fecha,
+            "empleado": empleado,
+            "tipo": tipo,
+            "descripcion": descripcion
+        })
+
+    def eliminar(self, idx):
+        del self.incidentes[idx]
+
+    def exportar_csv(self, archivo):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Fecha", "Empleado", "Tipo", "Descripción"])
+            for inc in self.incidentes:
+                writer.writerow([inc["fecha"], inc["empleado"], inc["tipo"], inc["descripcion"]])
+
+# --- Ventana principal de la aplicación ---
+
+class CyberSecurityApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Sistema de Gestión de Ciberseguridad - Firma Multimillonaria")
+        self.geometry("1100x700")
+        self.resizable(False, False)
+        self.configure(bg="#f4f8fb")
+
+        # Instancias de gestión
+        self.politicas = PoliticaManager()
+        self.empleados = EmpleadoManager()
+        self.incidentes = IncidenteManager()
+
+        # Crear pestañas
+        self.notebook = ttk.Notebook(self)
+        self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.frame_politicas = tk.Frame(self.notebook, bg="#f4f8fb")
+        self.frame_empleados = tk.Frame(self.notebook, bg="#f4f8fb")
+        self.frame_incidentes = tk.Frame(self.notebook, bg="#f4f8fb")
+        self.frame_reportes = tk.Frame(self.notebook, bg="#f4f8fb")
+
+        self.notebook.add(self.frame_politicas, text="Políticas de Seguridad")
+        self.notebook.add(self.frame_empleados, text="Empleados")
+        self.notebook.add(self.frame_incidentes, text="Incidentes")
+        self.notebook.add(self.frame_reportes, text="Reportes y Exportación")
+
+        self.crear_politicas_tab()
+        self.crear_empleados_tab()
+        self.crear_incidentes_tab()
+        self.crear_reportes_tab()
+
+    # --- Pestaña de Políticas ---
+    def crear_politicas_tab(self):
+        tk.Label(self.frame_politicas, text="Gestión de Políticas de Ciberseguridad", font=("Arial", 18, "bold"),
+                 bg="#f4f8fb", fg="#34495e").pack(pady=20)
+
+        frame_lista = tk.Frame(self.frame_politicas, bg="#f4f8fb")
+        frame_lista.pack(fill="both", expand=True, padx=20, pady=10)
+
+        self.tree_politicas = ttk.Treeview(frame_lista, columns=("Política"), show="headings", height=15)
+        self.tree_politicas.heading("Política", text="Política de Seguridad")
+        self.tree_politicas.column("Política", width=900)
+        self.tree_politicas.pack(side="left", fill="y")
+
+        scrollbar = ttk.Scrollbar(frame_lista, orient="vertical", command=self.tree_politicas.yview)
+        self.tree_politicas.configure(yscroll=scrollbar.set)
+        scrollbar.pack(side="left", fill="y")
+
+        self.actualizar_politicas()
+
+        frame_acciones = tk.Frame(self.frame_politicas, bg="#f4f8fb")
+        frame_acciones.pack(fill="x", padx=20, pady=10)
+
+        tk.Label(frame_acciones, text="Nueva política:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=0, padx=5)
+        self.entry_nueva_politica = tk.Entry(frame_acciones, width=80, font=("Arial", 12))
+        self.entry_nueva_politica.grid(row=0, column=1, padx=5)
+
+        tk.Button(frame_acciones, text="Agregar", command=self.agregar_politica, width=12, bg="#2ecc71", fg="white").grid(row=0, column=2, padx=5)
+        tk.Button(frame_acciones, text="Editar Seleccionada", command=self.editar_politica, width=18, bg="#3498db", fg="white").grid(row=0, column=3, padx=5)
+        tk.Button(frame_acciones, text="Eliminar Seleccionada", command=self.eliminar_politica, width=18, bg="#e74c3c", fg="white").grid(row=0, column=4, padx=5)
+
+    def actualizar_politicas(self):
+        self.tree_politicas.delete(*self.tree_politicas.get_children())
+        for pol in self.politicas.politicas:
+            self.tree_politicas.insert("", "end", values=(pol,))
+
+    def agregar_politica(self):
+        texto = self.entry_nueva_politica.get().strip()
+        if not texto:
+            messagebox.showwarning("Campo vacío", "Ingrese el texto de la política.")
+            return
+        self.politicas.agregar(texto)
+        self.actualizar_politicas()
+        self.entry_nueva_politica.delete(0, tk.END)
+
+    def editar_politica(self):
+        seleccion = self.tree_politicas.selection()
+        if not seleccion:
+            messagebox.showwarning("Sin selección", "Seleccione una política para editar.")
+            return
+        idx = self.tree_politicas.index(seleccion[0])
+        actual = self.politicas.politicas[idx]
+        nuevo = simpledialog.askstring("Editar política", "Edite la política:", initialvalue=actual)
+        if nuevo and nuevo.strip():
+            self.politicas.editar(idx, nuevo.strip())
+            self.actualizar_politicas()
+
+    def eliminar_politica(self):
+        seleccion = self.tree_politicas.selection()
+        if not seleccion:
+            messagebox.showwarning("Sin selección", "Seleccione una política para eliminar.")
+            return
+        idx = self.tree_politicas.index(seleccion[0])
+        pol = self.politicas.politicas[idx]
+        if messagebox.askyesno("Eliminar", f"¿Eliminar la política?\n\n{pol}"):
+            self.politicas.eliminar(idx)
+            self.actualizar_politicas()
+
+    # --- Pestaña de Empleados ---
+    def crear_empleados_tab(self):
+        tk.Label(self.frame_empleados, text="Gestión de Empleados", font=("Arial", 18, "bold"),
+                 bg="#f4f8fb", fg="#34495e").pack(pady=20)
+
+        frame_lista = tk.Frame(self.frame_empleados, bg="#f4f8fb")
+        frame_lista.pack(fill="both", expand=True, padx=20, pady=10)
+
+        self.tree_empleados = ttk.Treeview(frame_lista, columns=("ID", "Nombre", "Rol"), show="headings", height=15)
+        self.tree_empleados.heading("ID", text="ID")
+        self.tree_empleados.heading("Nombre", text="Nombre")
+        self.tree_empleados.heading("Rol", text="Rol")
+        self.tree_empleados.column("ID", width=80)
+        self.tree_empleados.column("Nombre", width=300)
+        self.tree_empleados.column("Rol", width=200)
+        self.tree_empleados.pack(side="left", fill="y")
+
+        scrollbar = ttk.Scrollbar(frame_lista, orient="vertical", command=self.tree_empleados.yview)
+        self.tree_empleados.configure(yscroll=scrollbar.set)
+        scrollbar.pack(side="left", fill="y")
+
+        self.actualizar_empleados()
+
+        frame_acciones = tk.Frame(self.frame_empleados, bg="#f4f8fb")
+        frame_acciones.pack(fill="x", padx=20, pady=10)
+
+        tk.Label(frame_acciones, text="ID:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=0, padx=5)
+        self.entry_id_emp = tk.Entry(frame_acciones, width=10, font=("Arial", 12))
+        self.entry_id_emp.grid(row=0, column=1, padx=5)
+
+        tk.Label(frame_acciones, text="Nombre:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=2, padx=5)
+        self.entry_nombre_emp = tk.Entry(frame_acciones, width=25, font=("Arial", 12))
+        self.entry_nombre_emp.grid(row=0, column=3, padx=5)
+
+        tk.Label(frame_acciones, text="Rol:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=4, padx=5)
+        self.entry_rol_emp = tk.Entry(frame_acciones, width=20, font=("Arial", 12))
+        self.entry_rol_emp.grid(row=0, column=5, padx=5)
+
+        tk.Button(frame_acciones, text="Agregar Empleado", command=self.agregar_empleado, width=18, bg="#2ecc71", fg="white").grid(row=0, column=6, padx=5)
+        tk.Button(frame_acciones, text="Eliminar Seleccionado", command=self.eliminar_empleado, width=18, bg="#e74c3c", fg="white").grid(row=0, column=7, padx=5)
+
+    def actualizar_empleados(self):
+        self.tree_empleados.delete(*self.tree_empleados.get_children())
+        for emp in self.empleados.empleados:
+            self.tree_empleados.insert("", "end", values=(emp["id"], emp["nombre"], emp["rol"]))
+
+    def agregar_empleado(self):
+        id_ = self.entry_id_emp.get().strip()
+        nombre = self.entry_nombre_emp.get().strip()
+        rol = self.entry_rol_emp.get().strip()
+        if not id_ or not nombre or not rol:
+            messagebox.showwarning("Campos vacíos", "Complete todos los campos para agregar un empleado.")
+            return
+        if self.empleados.buscar_por_id(id_):
+            messagebox.showwarning("ID duplicado", "Ya existe un empleado con ese ID.")
+            return
+        self.empleados.agregar(id_, nombre, rol)
+        self.actualizar_empleados()
+        self.entry_id_emp.delete(0, tk.END)
+        self.entry_nombre_emp.delete(0, tk.END)
+        self.entry_rol_emp.delete(0, tk.END)
+
+    def eliminar_empleado(self):
+        seleccion = self.tree_empleados.selection()
+        if not seleccion:
+            messagebox.showwarning("Sin selección", "Seleccione un empleado para eliminar.")
+            return
+        idx = self.tree_empleados.index(seleccion[0])
+        emp = self.empleados.empleados[idx]
+        if messagebox.askyesno("Eliminar", f"¿Eliminar el empleado?\n\n{emp['nombre']} ({emp['id']})"):
+            self.empleados.eliminar(idx)
+            self.actualizar_empleados()
+
+    # --- Pestaña de Incidentes ---
+    def crear_incidentes_tab(self):
+        tk.Label(self.frame_incidentes, text="Registro de Incidentes de Seguridad", font=("Arial", 18, "bold"),
+                 bg="#f4f8fb", fg="#34495e").pack(pady=20)
+
+        frame_lista = tk.Frame(self.frame_incidentes, bg="#f4f8fb")
+        frame_lista.pack(fill="both", expand=True, padx=20, pady=10)
+
+        self.tree_incidentes = ttk.Treeview(frame_lista, columns=("Fecha", "Empleado", "Tipo", "Descripción"), show="headings", height=15)
+        self.tree_incidentes.heading("Fecha", text="Fecha")
+        self.tree_incidentes.heading("Empleado", text="Empleado")
+        self.tree_incidentes.heading("Tipo", text="Tipo")
+        self.tree_incidentes.heading("Descripción", text="Descripción")
+        self.tree_incidentes.column("Fecha", width=100)
+        self.tree_incidentes.column("Empleado", width=100)
+        self.tree_incidentes.column("Tipo", width=120)
+        self.tree_incidentes.column("Descripción", width=500)
+        self.tree_incidentes.pack(side="left", fill="y")
+
+        scrollbar = ttk.Scrollbar(frame_lista, orient="vertical", command=self.tree_incidentes.yview)
+        self.tree_incidentes.configure(yscroll=scrollbar.set)
+        scrollbar.pack(side="left", fill="y")
+
+        self.actualizar_incidentes()
+
+        frame_acciones = tk.Frame(self.frame_incidentes, bg="#f4f8fb")
+        frame_acciones.pack(fill="x", padx=20, pady=10)
+
+        tk.Label(frame_acciones, text="Fecha (YYYY-MM-DD):", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=0, padx=5)
+        self.entry_fecha_inc = tk.Entry(frame_acciones, width=12, font=("Arial", 12))
+        self.entry_fecha_inc.grid(row=0, column=1, padx=5)
+        self.entry_fecha_inc.insert(0, datetime.date.today().isoformat())
+
+        tk.Label(frame_acciones, text="Empleado (ID):", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=2, padx=5)
+        self.entry_emp_inc = tk.Entry(frame_acciones, width=10, font=("Arial", 12))
+        self.entry_emp_inc.grid(row=0, column=3, padx=5)
+
+        tk.Label(frame_acciones, text="Tipo:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=4, padx=5)
+        self.entry_tipo_inc = tk.Entry(frame_acciones, width=15, font=("Arial", 12))
+        self.entry_tipo_inc.grid(row=0, column=5, padx=5)
+
+        tk.Label(frame_acciones, text="Descripción:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=6, padx=5)
+        self.entry_desc_inc = tk.Entry(frame_acciones, width=40, font=("Arial", 12))
+        self.entry_desc_inc.grid(row=0, column=7, padx=5)
+
+        tk.Button(frame_acciones, text="Registrar Incidente", command=self.agregar_incidente, width=18, bg="#2ecc71", fg="white").grid(row=0, column=8, padx=5)
+        tk.Button(frame_acciones, text="Eliminar Seleccionado", command=self.eliminar_incidente, width=18, bg="#e74c3c", fg="white").grid(row=0, column=9, padx=5)
+
+    def actualizar_incidentes(self):
+        self.tree_incidentes.delete(*self.tree_incidentes.get_children())
+        for inc in self.incidentes.incidentes:
+            emp = self.empleados.buscar_por_id(inc["empleado"])
+            nombre = emp["nombre"] if emp else inc["empleado"]
+            self.tree_incidentes.insert("", "end", values=(inc["fecha"], nombre, inc["tipo"], inc["descripcion"]))
+
+    def agregar_incidente(self):
+        fecha = self.entry_fecha_inc.get().strip()
+        empleado = self.entry_emp_inc.get().strip()
+        tipo = self.entry_tipo_inc.get().strip()
+        desc = self.entry_desc_inc.get().strip()
+        if not fecha or not empleado or not tipo or not desc:
+            messagebox.showwarning("Campos vacíos", "Complete todos los campos para registrar el incidente.")
+            return
+        self.incidentes.agregar(fecha, empleado, tipo, desc)
+        self.actualizar_incidentes()
+        self.entry_tipo_inc.delete(0, tk.END)
+        self.entry_desc_inc.delete(0, tk.END)
+
+    def eliminar_incidente(self):
+        seleccion = self.tree_incidentes.selection()
+        if not seleccion:
+            messagebox.showwarning("Sin selección", "Seleccione un incidente para eliminar.")
+            return
+        idx = self.tree_incidentes.index(seleccion[0])
+        inc = self.incidentes.incidentes[idx]
+        if messagebox.askyesno("Eliminar", f"¿Eliminar el incidente?\n\n{inc['tipo']} - {inc['descripcion']}"):
+            self.incidentes.eliminar(idx)
+            self.actualizar_incidentes()
+
+    # --- Pestaña de Reportes y Exportación ---
+    def crear_reportes_tab(self):
+        tk.Label(self.frame_reportes, text="Reportes y Exportación", font=("Arial", 18, "bold"),
+                 bg="#f4f8fb", fg="#34495e").pack(pady=20)
+
+        frame_botones = tk.Frame(self.frame_reportes, bg="#f4f8fb")
+        frame_botones.pack(fill="x", padx=20, pady=10)
+
+        tk.Button(frame_botones, text="Exportar Políticas a CSV", command=self.exportar_politicas, width=25, bg="#2ecc71", fg="white").pack(side="left", padx=10)
+        tk.Button(frame_botones, text="Exportar Empleados a CSV", command=self.exportar_empleados, width=25, bg="#3498db", fg="white").pack(side="left", padx=10)
+        tk.Button(frame_botones, text="Exportar Incidentes a CSV", command=self.exportar_incidentes, width=25, bg="#e74c3c", fg="white").pack(side="left", padx=10)
+
+        # Resumen de datos
+        frame_resumen = tk.Frame(self.frame_reportes, bg="#f4f8fb")
+        frame_resumen.pack(fill="both", expand=True, padx=20, pady=20)
+
+        tk.Label(frame_resumen, text="Resumen de Seguridad", font=("Arial", 15, "bold"), bg="#f4f8fb", fg="#34495e").pack(pady=10)
+
+        self.label_resumen = tk.Label(frame_resumen, text="", font=("Arial", 12), bg="#f4f8fb", fg="#34495e", justify="left")
+        self.label_resumen.pack(pady=10)
+        self.actualizar_resumen()
+
+        tk.Button(frame_resumen, text="Actualizar Resumen", command=self.actualizar_resumen, width=20, bg="#f1c40f", fg="black").pack(pady=10)
+
+    def exportar_politicas(self):
+        archivo = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("Archivo CSV", "*.csv")])
+        if archivo:
+            self.politicas.exportar_csv(archivo)
+            messagebox.showinfo("Exportación exitosa", "Políticas exportadas correctamente.")
+
+    def exportar_empleados(self):
+        archivo = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("Archivo CSV", "*.csv")])
+        if archivo:
+            self.empleados.exportar_csv(archivo)
+            messagebox.showinfo("Exportación exitosa", "Empleados exportados correctamente.")
+
+    def exportar_incidentes(self):
+        archivo = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("Archivo CSV", "*.csv")])
+        if archivo:
+            self.incidentes.exportar_csv(archivo)
+            messagebox.showinfo("Exportación exitosa", "Incidentes exportados correctamente.")
+
+    def actualizar_resumen(self):
+        total_politicas = len(self.politicas.politicas)
+        total_empleados = len(self.empleados.empleados)
+        total_incidentes = len(self.incidentes.incidentes)
+        resumen = (
+            f"Total de políticas de ciberseguridad: {total_politicas}\n"
+            f"Total de empleados registrados: {total_empleados}\n"
+            f"Total de incidentes reportados: {total_incidentes}\n"
+            "\nÚltimos incidentes:\n"
+        )
+        ultimos = self.incidentes.incidentes[-3:] if total_incidentes >= 3 else self.incidentes.incidentes
+        for inc in ultimos:
+            emp = self.empleados.buscar_por_id(inc["empleado"])
+            nombre = emp["nombre"] if emp else inc["empleado"]
+            resumen += f"- {inc['fecha']}: {inc['tipo']} ({nombre})\n"
+        self.label_resumen.config(text=resumen)
+
+# --- Código principal ---
+
+if __name__ == "__main__":
+    app = CyberSecurityApp()
+    app.mainloop()
+    imput tkintker as tk 
+from tinker impyt tkk, messagel 
+imput detetión 
+delive csv 
+# datos inicial code for example ande politicas and segurity 
+
+imput datetime 
+
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog, simpledialog
+import datetime
+import csv
+
+# --- Datos iniciales de ejemplo ---
+
+AUTOS_INICIALES = [
+    {"id": "A001", "marca": "Tesla", "modelo": "Model S", "año": 2023, "precio": 90000},
+    {"id": "A002", "marca": "BMW", "modelo": "i8", "año": 2022, "precio": 140000},
+    {"id": "A003", "marca": "Toyota", "modelo": "Corolla", "año": 2024, "precio": 25000},
+]
+
+AVIONES_INICIALES = [
+    {"id": "V001", "marca": "Boeing", "modelo": "747", "año": 2020, "precio": 380000000},
+    {"id": "V002", "marca": "Airbus", "modelo": "A320", "año": 2021, "precio": 110000000},
+]
+
+EMPLEADOS_INICIALES = [
+    {"id": "E001", "nombre": "Ana Torres", "rol": "CEO"},
+    {"id": "E002", "nombre": "Luis Pérez", "rol": "Gerente de Ventas"},
+    {"id": "E003", "nombre": "María Gómez", "rol": "Ingeniera"},
+]
+
+VENTAS_INICIALES = [
+    {"fecha": "2025-09-01", "empleado": "E002", "vehiculo": "A001", "tipo": "Auto", "precio": 90000},
+    {"fecha": "2025-09-10", "empleado": "E001", "vehiculo": "V001", "tipo": "Avión", "precio": 380000000},
+]
+
+# --- Clases de gestión de datos ---
+
+class AutoManager:
+    def __init__(self):
+        self.autos = AUTOS_INICIALES.copy()
+
+    def agregar(self, id_, marca, modelo, año, precio):
+        self.autos.append({"id": id_, "marca": marca, "modelo": modelo, "año": año, "precio": precio})
+
+    def eliminar(self, idx):
+        del self.autos[idx]
+
+    def buscar_por_id(self, id_):
+        for auto in self.autos:
+            if auto["id"] == id_:
+                return auto
+        return None
+
+    def exportar_csv(self, archivo):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["ID", "Marca", "Modelo", "Año", "Precio"])
+            for auto in self.autos:
+                writer.writerow([auto["id"], auto["marca"], auto["modelo"], auto["año"], auto["precio"]])
+
+class AvionManager:
+    def __init__(self):
+        self.aviones = AVIONES_INICIALES.copy()
+
+    def agregar(self, id_, marca, modelo, año, precio):
+        self.aviones.append({"id": id_, "marca": marca, "modelo": modelo, "año": año, "precio": precio})
+
+    def eliminar(self, idx):
+        del self.aviones[idx]
+
+    def buscar_por_id(self, id_):
+        for avion in self.aviones:
+            if avion["id"] == id_:
+                return avion
+        return None
+
+    def exportar_csv(self, archivo):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["ID", "Marca", "Modelo", "Año", "Precio"])
+            for avion in self.aviones:
+                writer.writerow([avion["id"], avion["marca"], avion["modelo"], avion["año"], avion["precio"]])
+
+class EmpleadoManager:
+    def __init__(self):
+        self.empleados = EMPLEADOS_INICIALES.copy()
+
+    def agregar(self, id_, nombre, rol):
+        self.empleados.append({"id": id_, "nombre": nombre, "rol": rol})
+
+    def eliminar(self, idx):
+        del self.empleados[idx]
+
+    def buscar_por_id(self, id_):
+        for emp in self.empleados:
+            if emp["id"] == id_:
+                return emp
+        return None
+
+    def exportar_csv(self, archivo):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["ID", "Nombre", "Rol"])
+            for emp in self.empleados:
+                writer.writerow([emp["id"], emp["nombre"], emp["rol"]])
+
+class VentaManager:
+    def __init__(self):
+        self.ventas = VENTAS_INICIALES.copy()
+
+    def agregar(self, fecha, empleado, vehiculo, tipo, precio):
+        self.ventas.append({
+            "fecha": fecha,
+            "empleado": empleado,
+            "vehiculo": vehiculo,
+            "tipo": tipo,
+            "precio": precio
+        })
+
+    def eliminar(self, idx):
+        del self.ventas[idx]
+
+    def exportar_csv(self, archivo):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Fecha", "Empleado", "Vehículo", "Tipo", "Precio"])
+            for venta in self.ventas:
+                writer.writerow([venta["fecha"], venta["empleado"], venta["vehiculo"], venta["tipo"], venta["precio"]])
+
+# --- Ventana principal de la aplicación ---
+
+class EmpresaAutosAvionesApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Gestión Empresa Gigante de Autos y Aviones")
+        self.geometry("1100x700")
+        self.resizable(False, False)
+        self.configure(bg="#f4f8fb")
+
+        self.autos = AutoManager()
+        self.aviones = AvionManager()
+        self.empleados = EmpleadoManager()
+        self.ventas = VentaManager()
+
+        self.notebook = ttk.Notebook(self)
+        self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.frame_autos = tk.Frame(self.notebook, bg="#f4f8fb")
+        self.frame_aviones = tk.Frame(self.notebook, bg="#f4f8fb")
+        self.frame_empleados = tk.Frame(self.notebook, bg="#f4f8fb")
+        self.frame_ventas = tk.Frame(self.notebook, bg="#f4f8fb")
+        self.frame_reportes = tk.Frame(self.notebook, bg="#f4f8fb")
+
+        self.notebook.add(self.frame_autos, text="Autos")
+        self.notebook.add(self.frame_aviones, text="Aviones")
+        self.notebook.add(self.frame_empleados, text="Empleados")
+        self.notebook.add(self.frame_ventas, text="Ventas")
+        self.notebook.add(self.frame_reportes, text="Reportes")
+
+        self.crear_autos_tab()
+        self.crear_aviones_tab()
+        self.crear_empleados_tab()
+        self.crear_ventas_tab()
+        self.crear_reportes_tab()
+
+    # --- Autos ---
+    def crear_autos_tab(self):
+        tk.Label(self.frame_autos, text="Gestión de Autos", font=("Arial", 18, "bold"),
+                 bg="#f4f8fb", fg="#34495e").pack(pady=20)
+        frame_lista = tk.Frame(self.frame_autos, bg="#f4f8fb")
+        frame_lista.pack(fill="both", expand=True, padx=20, pady=10)
+        self.tree_autos = ttk.Treeview(frame_lista, columns=("ID", "Marca", "Modelo", "Año", "Precio"), show="headings", height=15)
+        for col in ("ID", "Marca", "Modelo", "Año", "Precio"):
+            self.tree_autos.heading(col, text=col)
+            self.tree_autos.column(col, width=150)
+        self.tree_autos.pack(side="left", fill="y")
+        scrollbar = ttk.Scrollbar(frame_lista, orient="vertical", command=self.tree_autos.yview)
+        self.tree_autos.configure(yscroll=scrollbar.set)
+        scrollbar.pack(side="left", fill="y")
+        self.actualizar_autos()
+        frame_acciones = tk.Frame(self.frame_autos, bg="#f4f8fb")
+        frame_acciones.pack(fill="x", padx=20, pady=10)
+        tk.Label(frame_acciones, text="ID:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=0)
+        self.entry_id_auto = tk.Entry(frame_acciones, width=10)
+        self.entry_id_auto.grid(row=0, column=1)
+        tk.Label(frame_acciones, text="Marca:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=2)
+        self.entry_marca_auto = tk.Entry(frame_acciones, width=15)
+        self.entry_marca_auto.grid(row=0, column=3)
+        tk.Label(frame_acciones, text="Modelo:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=4)
+        self.entry_modelo_auto = tk.Entry(frame_acciones, width=15)
+        self.entry_modelo_auto.grid(row=0, column=5)
+        tk.Label(frame_acciones, text="Año:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=6)
+        self.entry_año_auto = tk.Entry(frame_acciones, width=6)
+        self.entry_año_auto.grid(row=0, column=7)
+        tk.Label(frame_acciones, text="Precio:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=8)
+        self.entry_precio_auto = tk.Entry(frame_acciones, width=10)
+        self.entry_precio_auto.grid(row=0, column=9)
+        tk.Button(frame_acciones, text="Agregar Auto", command=self.agregar_auto, width=15, bg="#2ecc71", fg="white").grid(row=0, column=10, padx=5)
+        tk.Button(frame_acciones, text="Eliminar Seleccionado", command=self.eliminar_auto, width=18, bg="#e74c3c", fg="white").grid(row=0, column=11, padx=5)
+
+    def actualizar_autos(self):
+        self.tree_autos.delete(*self.tree_autos.get_children())
+        for auto in self.autos.autos:
+            self.tree_autos.insert("", "end", values=(auto["id"], auto["marca"], auto["modelo"], auto["año"], auto["precio"]))
+
+    def agregar_auto(self):
+        id_ = self.entry_id_auto.get().strip()
+        marca = self.entry_marca_auto.get().strip()
+        modelo = self.entry_modelo_auto.get().strip()
+        año = self.entry_año_auto.get().strip()
+        precio = self.entry_precio_auto.get().strip()
+        if not id_ or not marca or not modelo or not año or not precio:
+            messagebox.showwarning("Campos vacíos", "Complete todos los campos para agregar un auto.")
+            return
+        try:
+            año = int(año)
+            precio = float(precio)
+        except ValueError:
+            messagebox.showwarning("Datos inválidos", "Año y precio deben ser numéricos.")
+            return
+        if self.autos.buscar_por_id(id_):
+            messagebox.showwarning("ID duplicado", "Ya existe un auto con ese ID.")
+            return
+        self.autos.agregar(id_, marca, modelo, año, precio)
+        self.actualizar_autos()
+        self.entry_id_auto.delete(0, tk.END)
+        self.entry_marca_auto.delete(0, tk.END)
+        self.entry_modelo_auto.delete(0, tk.END)
+        self.entry_año_auto.delete(0, tk.END)
+        self.entry_precio_auto.delete(0, tk.END)
+
+    def eliminar_auto(self):
+        seleccion = self.tree_autos.selection()
+        if not seleccion:
+            messagebox.showwarning("Sin selección", "Seleccione un auto para eliminar.")
+            return
+        idx = self.tree_autos.index(seleccion[0])
+        auto = self.autos.autos[idx]
+        if messagebox.askyesno("Eliminar", f"¿Eliminar el auto?\n\n{auto['marca']} {auto['modelo']} ({auto['id']})"):
+            self.autos.eliminar(idx)
+            self.actualizar_autos()
+
+    # --- Aviones ---
+    def crear_aviones_tab(self):
+        tk.Label(self.frame_aviones, text="Gestión de Aviones", font=("Arial", 18, "bold"),
+                 bg="#f4f8fb", fg="#34495e").pack(pady=20)
+        frame_lista = tk.Frame(self.frame_aviones, bg="#f4f8fb")
+        frame_lista.pack(fill="both", expand=True, padx=20, pady=10)
+        self.tree_aviones = ttk.Treeview(frame_lista, columns=("ID", "Marca", "Modelo", "Año", "Precio"), show="headings", height=15)
+        for col in ("ID", "Marca", "Modelo", "Año", "Precio"):
+            self.tree_aviones.heading(col, text=col)
+            self.tree_aviones.column(col, width=150)
+        self.tree_aviones.pack(side="left", fill="y")
+        scrollbar = ttk.Scrollbar(frame_lista, orient="vertical", command=self.tree_aviones.yview)
+        self.tree_aviones.configure(yscroll=scrollbar.set)
+        scrollbar.pack(side="left", fill="y")
+        self.actualizar_aviones()
+        frame_acciones = tk.Frame(self.frame_aviones, bg="#f4f8fb")
+        frame_acciones.pack(fill="x", padx=20, pady=10)
+        tk.Label(frame_acciones, text="ID:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=0)
+        self.entry_id_avion = tk.Entry(frame_acciones, width=10)
+        self.entry_id_avion.grid(row=0, column=1)
+        tk.Label(frame_acciones, text="Marca:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=2)
+        self.entry_marca_avion = tk.Entry(frame_acciones, width=15)
+        self.entry_marca_avion.grid(row=0, column=3)
+        tk.Label(frame_acciones, text="Modelo:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=4)
+        self.entry_modelo_avion = tk.Entry(frame_acciones, width=15)
+        self.entry_modelo_avion.grid(row=0, column=5)
+        tk.Label(frame_acciones, text="Año:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=6)
+        self.entry_año_avion = tk.Entry(frame_acciones, width=6)
+        self.entry_año_avion.grid(row=0, column=7)
+        tk.Label(frame_acciones, text="Precio:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=8)
+        self.entry_precio_avion = tk.Entry(frame_acciones, width=10)
+        self.entry_precio_avion.grid(row=0, column=9)
+        tk.Button(frame_acciones, text="Agregar Avión", command=self.agregar_avion, width=15, bg="#2ecc71", fg="white").grid(row=0, column=10, padx=5)
+        tk.Button(frame_acciones, text="Eliminar Seleccionado", command=self.eliminar_avion, width=18, bg="#e74c3c", fg="white").grid(row=0, column=11, padx=5)
+
+    def actualizar_aviones(self):
+        self.tree_aviones.delete(*self.tree_aviones.get_children())
+        for avion in self.aviones.aviones:
+            self.tree_aviones.insert("", "end", values=(avion["id"], avion["marca"], avion["modelo"], avion["año"], avion["precio"]))
+
+    def agregar_avion(self):
+        id_ = self.entry_id_avion.get().strip()
+        marca = self.entry_marca_avion.get().strip()
+        modelo = self.entry_modelo_avion.get().strip()
+        año = self.entry_año_avion.get().strip()
+        precio = self.entry_precio_avion.get().strip()
+        if not id_ or not marca or not modelo or not año or not precio:
+            messagebox.showwarning("Campos vacíos", "Complete todos los campos para agregar un avión.")
+            return
+        try:
+            año = int(año)
+            precio = float(precio)
+        except ValueError:
+            messagebox.showwarning("Datos inválidos", "Año y precio deben ser numéricos.")
+            return
+        if self.aviones.buscar_por_id(id_):
+            messagebox.showwarning("ID duplicado", "Ya existe un avión con ese ID.")
+            return
+        self.aviones.agregar(id_, marca, modelo, año, precio)
+        self.actualizar_aviones()
+        self.entry_id_avion.delete(0, tk.END)
+        self.entry_marca_avion.delete(0, tk.END)
+        self.entry_modelo_avion.delete(0, tk.END)
+        self.entry_año_avion.delete(0, tk.END)
+        self.entry_precio_avion.delete(0, tk.END)
+
+    def eliminar_avion(self):
+        seleccion = self.tree_aviones.selection()
+        if not seleccion:
+            messagebox.showwarning("Sin selección", "Seleccione un avión para eliminar.")
+            return
+        idx = self.tree_aviones.index(seleccion[0])
+        avion = self.aviones.aviones[idx]
+        if messagebox.askyesno("Eliminar", f"¿Eliminar el avión?\n\n{avion['marca']} {avion['modelo']} ({avion['id']})"):
+            self.aviones.eliminar(idx)
+            self.actualizar_aviones()
+
+    # --- Empleados ---
+    def crear_empleados_tab(self):
+        tk.Label(self.frame_empleados, text="Gestión de Empleados", font=("Arial", 18, "bold"),
+                 bg="#f4f8fb", fg="#34495e").pack(pady=20)
+        frame_lista = tk.Frame(self.frame_empleados, bg="#f4f8fb")
+        frame_lista.pack(fill="both", expand=True, padx=20, pady=10)
+        self.tree_empleados = ttk.Treeview(frame_lista, columns=("ID", "Nombre", "Rol"), show="headings", height=15)
+        for col in ("ID", "Nombre", "Rol"):
+            self.tree_empleados.heading(col, text=col)
+            self.tree_empleados.column(col, width=200)
+        self.tree_empleados.pack(side="left", fill="y")
+        scrollbar = ttk.Scrollbar(frame_lista, orient="vertical", command=self.tree_empleados.yview)
+        self.tree_empleados.configure(yscroll=scrollbar.set)
+        scrollbar.pack(side="left", fill="y")
+        self.actualizar_empleados()
+        frame_acciones = tk.Frame(self.frame_empleados, bg="#f4f8fb")
+        frame_acciones.pack(fill="x", padx=20, pady=10)
+        tk.Label(frame_acciones, text="ID:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=0)
+        self.entry_id_emp = tk.Entry(frame_acciones, width=10)
+        self.entry_id_emp.grid(row=0, column=1)
+        tk.Label(frame_acciones, text="Nombre:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=2)
+        self.entry_nombre_emp = tk.Entry(frame_acciones, width=25)
+        self.entry_nombre_emp.grid(row=0, column=3)
+        tk.Label(frame_acciones, text="Rol:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=4)
+        self.entry_rol_emp = tk.Entry(frame_acciones, width=20)
+        self.entry_rol_emp.grid(row=0, column=5)
+        tk.Button(frame_acciones, text="Agregar Empleado", command=self.agregar_empleado, width=18, bg="#2ecc71", fg="white").grid(row=0, column=6, padx=5)
+        tk.Button(frame_acciones, text="Eliminar Seleccionado", command=self.eliminar_empleado, width=18, bg="#e74c3c", fg="white").grid(row=0, column=7, padx=5)
+
+    def actualizar_empleados(self):
+        self.tree_empleados.delete(*self.tree_empleados.get_children())
+        for emp in self.empleados.empleados:
+            self.tree_empleados.insert("", "end", values=(emp["id"], emp["nombre"], emp["rol"]))
+
+    def agregar_empleado(self):
+        id_ = self.entry_id_emp.get().strip()
+        nombre = self.entry_nombre_emp.get().strip()
+        rol = self.entry_rol_emp.get().strip()
+        if not id_ or not nombre or not rol:
+            messagebox.showwarning("Campos vacíos", "Complete todos los campos para agregar un empleado.")
+            return
+        if self.empleados.buscar_por_id(id_):
+            messagebox.showwarning("ID duplicado", "Ya existe un empleado con ese ID.")
+            return
+        self.empleados.agregar(id_, nombre, rol)
+        self.actualizar_empleados()
+        self.entry_id_emp.delete(0, tk.END)
+        self.entry_nombre_emp.delete(0, tk.END)
+        self.entry_rol_emp.delete(0, tk.END)
+
+    def eliminar_empleado(self):
+        seleccion = self.tree_empleados.selection()
+        if not seleccion:
+            messagebox.showwarning("Sin selección", "Seleccione un empleado para eliminar.")
+            return
+        idx = self.tree_empleados.index(seleccion[0])
+        emp = self.empleados.empleados[idx]
+        if messagebox.askyesno("Eliminar", f"¿Eliminar el empleado?\n\n{emp['nombre']} ({emp['id']})"):
+            self.empleados.eliminar(idx)
+            self.actualizar_empleados()
+
+    # --- Ventas ---
+    def crear_ventas_tab(self):
+        tk.Label(self.frame_ventas, text="Registro de Ventas", font=("Arial", 18, "bold"),
+                 bg="#f4f8fb", fg="#34495e").pack(pady=20)
+        frame_lista = tk.Frame(self.frame_ventas, bg="#f4f8fb")
+        frame_lista.pack(fill="both", expand=True, padx=20, pady=10)
+        self.tree_ventas = ttk.Treeview(frame_lista, columns=("Fecha", "Empleado", "Vehículo", "Tipo", "Precio"), show="headings", height=15)
+        for col in ("Fecha", "Empleado", "Vehículo", "Tipo", "Precio"):
+            self.tree_ventas.heading(col, text=col)
+            self.tree_ventas.column(col, width=150)
+        self.tree_ventas.pack(side="left", fill="y")
+        scrollbar = ttk.Scrollbar(frame_lista, orient="vertical", command=self.tree_ventas.yview)
+        self.tree_ventas.configure(yscroll=scrollbar.set)
+        scrollbar.pack(side="left", fill="y")
+        self.actualizar_ventas()
+        frame_acciones = tk.Frame(self.frame_ventas, bg="#f4f8fb")
+        frame_acciones.pack(fill="x", padx=20, pady=10)
+        tk.Label(frame_acciones, text="Fecha (YYYY-MM-DD):", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=0)
+        self.entry_fecha_venta = tk.Entry(frame_acciones, width=12)
+        self.entry_fecha_venta.grid(row=0, column=1)
+        self.entry_fecha_venta.insert(0, datetime.date.today().isoformat())
+        tk.Label(frame_acciones, text="Empleado (ID):", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=2)
+        self.entry_emp_venta = tk.Entry(frame_acciones, width=10)
+        self.entry_emp_venta.grid(row=0, column=3)
+        tk.Label(frame_acciones, text="Vehículo (ID):", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=4)
+        self.entry_vehiculo_venta = tk.Entry(frame_acciones, width=10)
+        self.entry_vehiculo_venta.grid(row=0, column=5)
+        tk.Label(frame_acciones, text="Tipo:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=6)
+        self.entry_tipo_venta = tk.Entry(frame_acciones, width=8)
+        self.entry_tipo_venta.grid(row=0, column=7)
+        tk.Label(frame_acciones, text="Precio:", font=("Arial", 12), bg="#f4f8fb").grid(row=0, column=8)
+        self.entry_precio_venta = tk.Entry(frame_acciones, width=10)
+        self.entry_precio_venta.grid(row=0, column=9)
+        tk.Button(frame_acciones, text="Registrar Venta", command=self.agregar_venta, width=15, bg="#2ecc71", fg="white").grid(row=0, column=10, padx=5)
+        tk.Button(frame_acciones, text="Eliminar Seleccionada", command=self.eliminar_venta, width=18, bg="#e74c3c", fg="white").grid(row=0, column=11, padx=5)
+
+    def actualizar_ventas(self):
+        self.tree_ventas.delete(*self.tree_ventas.get_children())
+        for venta in self.ventas.ventas:
+            emp = self.empleados.buscar_por_id(venta["empleado"])
+            nombre_emp = emp["nombre"] if emp else venta["empleado"]
+            self.tree_ventas.insert("", "end", values=(venta["fecha"], nombre_emp, venta["vehiculo"], venta["tipo"], venta["precio"]))
+
+    def agregar_venta(self):
+        fecha = self.entry_fecha_venta.get().strip()
+        empleado = self.entry_emp_venta.get().strip()
+        vehiculo = self.entry_vehiculo_venta.get().strip()
+        tipo = self.entry_tipo_venta.get().strip()
+        precio = self.entry_precio_venta.get().strip()
+        if not fecha or not empleado or not vehiculo or not tipo or not precio:
+            messagebox.showwarning("Campos vacíos", "Complete todos los campos para registrar la venta.")
+            return
+        try:
+            precio = float(precio)
+        except ValueError:
+            messagebox.showwarning("Datos inválidos", "El precio debe ser numérico.")
+            return
+        self.ventas.agregar(fecha, empleado, vehiculo, tipo, precio)
+        self.actualizar_ventas()
+        self.entry_vehiculo_venta.delete(0, tk.END)
+        self.entry_tipo_venta.delete(0, tk.END)
+        self.entry_precio_venta.delete(0, tk.END)
+
+    def eliminar_venta(self):
+        seleccion = self.tree_ventas.selection()
+        if not seleccion:
+            messagebox.showwarning("Sin selección", "Seleccione una venta para eliminar.")
+            return
+        idx = self.tree_ventas.index(seleccion[0])
+        venta = self.ventas.ventas[idx]
+        if messagebox.askyesno("Eliminar", f"¿Eliminar la venta?\n\n{venta['tipo']} {venta['vehiculo']} ({venta['fecha']})"):
+            self.ventas.eliminar(idx)
+            self.actualizar_ventas()
+
+    # --- Reportes ---
+    def crear_reportes_tab(self):
+        tk.Label(self.frame_reportes, text="Reportes y Exportación", font=("Arial", 18, "bold"),
+                 bg="#f4f8fb", fg="#34495e").pack(pady=20)
+        frame_botones = tk.Frame(self.frame_reportes, bg="#f4f8fb")
+        frame_botones.pack(fill="x", padx=20, pady=10)
+        tk.Button(frame_botones, text="Exportar Autos a CSV", command=self.exportar_autos, width=25, bg="#2ecc71", fg="white").pack(side="left", padx=10)
+        tk.Button(frame_botones, text="Exportar Aviones a CSV", command=self.exportar_aviones, width=25, bg="#3498db", fg="white").pack(side="left", padx=10)
+        tk.Button(frame_botones, text="Exportar Empleados a CSV", command=self.exportar_empleados, width=25, bg="#f1c40f", fg="black").pack(side="left", padx=10)
+        tk.Button(frame_botones, text="Exportar Ventas a CSV", command=self.exportar_ventas, width=25, bg="#e74c3c", fg="white").pack(side="left", padx=10)
+        frame_resumen = tk.Frame(self.frame_reportes, bg="#f4f8fb")
+        frame_resumen.pack(fill="both", expand=True, padx=20, pady=20)
+        tk.Label(frame_resumen, text="Resumen de Empresa", font=("Arial", 15, "bold"), bg="#f4f8fb", fg="#34495e").pack(pady=10)
+        self.label_resumen = tk.Label(frame_resumen, text="", font=("Arial", 12), bg="#f4f8fb", fg="#34495e", justify="left")
+        self.label_resumen.pack(pady=10)
+        self.actualizar_resumen()
+        tk.Button(frame_resumen, text="Actualizar Resumen", command=self.actualizar_resumen, width=20, bg="#aed6f1", fg="black").pack(pady=10)
+
+    def exportar_autos(self):
+        archivo = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("Archivo CSV", "*.csv")])
+        if archivo:
+            self.autos.exportar_csv(archivo)
+            messagebox.showinfo("Exportación exitosa", "Autos exportados correctamente.")
+
+    def exportar_aviones(self):
+        archivo = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("Archivo CSV", "*.csv")])
+        if archivo:
+            self.aviones.exportar_csv(archivo)
+            messagebox.showinfo("Exportación exitosa", "Aviones exportados correctamente.")
+
+    def exportar_empleados(self):
+        archivo = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("Archivo CSV", "*.csv")])
+        if archivo:
+            self.empleados.exportar_csv(archivo)
+            messagebox.showinfo("Exportación exitosa", "Empleados exportados correctamente.")
+
+    def exportar_ventas(self):
+        archivo = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("Archivo CSV", "*.csv")])
+        if archivo:
+            self.ventas.exportar_csv(archivo)
+            messagebox.showinfo("Exportación exitosa", "Ventas exportadas correctamente.")
+
+    def actualizar_resumen(self):
+        total_autos = len(self.autos.autos)
+        total_aviones = len(self.aviones.aviones)
+        total_empleados = len(self.empleados.empleados)
+        total_ventas = len(self.ventas.ventas)
+        resumen = (
+            f"Total de autos: {total_autos}\n"
+            f"Total de aviones: {total_aviones}\n"
+            f"Total de empleados: {total_empleados}\n"
+            f"Total de ventas: {total_ventas}\n"
+            "\nÚltimas ventas:\n"
+        )
+        ultimos = self.ventas.ventas[-3:] if total_ventas >= 3 else self.ventas.ventas
+        for venta in ultimos:
+            emp = self.empleados.buscar_por_id(venta["empleado"])
+            nombre_emp = emp["nombre"] if emp else venta["empleado"]
+            resumen += f"- {venta['fecha']}: {venta['tipo']} {venta['vehiculo']} vendido por {nombre_emp}\n"
+        self.label_resumen.config(text=resumen)
+
+# --- Código principal ---
+
+if __name__ == "__main__":
+    app = EmpresaAutosAvionesApp()
+    app.mainloop()
