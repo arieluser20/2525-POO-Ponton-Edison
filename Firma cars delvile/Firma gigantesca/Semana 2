@@ -1,0 +1,704 @@
+
+import csv
+import datetime
+import random
+import statistics
+import uuid
+import os
+import sys
+import logging
+from typing import List, Dict, Optional
+
+# Configuración básica de logging para registrar acciones del simulador.
+logging.basicConfig(
+    filename="firma_multimillonaria.log",
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
+# ---------------------------------------------------------------------
+# Modelos de datos principales
+# ---------------------------------------------------------------------
+
+class Empleado:
+    """Modelo que representa a un empleado."""
+
+    def __init__(self, id_: str, nombre: str, rol: str, salario_anual: float):
+        self.id = id_
+        self.nombre = nombre
+        self.rol = rol
+        self.salario_anual = float(salario_anual)
+        self.fecha_ingreso = datetime.date.today()
+        self.activo = True
+
+    def despedir(self):
+        """Marca al empleado como no activo."""
+        self.activo = False
+        logging.info(f"Empleado despedido: {self.id} - {self.nombre}")
+
+    def promocionar(self, nuevo_rol: str, aumento_pct: float = 0.10):
+        """Promociona al empleado y ajusta salario."""
+        antiguo = self.rol
+        self.rol = nuevo_rol
+        self.salario_anual *= (1 + aumento_pct)
+        logging.info(f"Empleado promovido: {self.id} {antiguo} -> {nuevo_rol}, salario ajustado")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "nombre": self.nombre,
+            "rol": self.rol,
+            "salario_anual": self.salario_anual,
+            "fecha_ingreso": self.fecha_ingreso.isoformat(),
+            "activo": self.activo
+        }
+
+
+class Producto:
+    """Modelo que representa un producto (auto, avión, componente, software...)."""
+
+    def __init__(self, sku: str, nombre: str, costo_produccion: float, precio_venta: float, unidad: str = "unidad"):
+        self.sku = sku
+        self.nombre = nombre
+        self.costo_produccion = float(costo_produccion)
+        self.precio_venta = float(precio_venta)
+        self.unidad = unidad
+        self.fecha_creacion = datetime.date.today()
+
+    def margen_bruto(self) -> float:
+        """Calcula margen bruto por unidad."""
+        return self.precio_venta - self.costo_produccion
+
+    def to_dict(self):
+        return {
+            "sku": self.sku,
+            "nombre": self.nombre,
+            "costo_produccion": self.costo_produccion,
+            "precio_venta": self.precio_venta,
+            "unidad": self.unidad,
+            "fecha_creacion": self.fecha_creacion.isoformat()
+        }
+
+
+class Inventario:
+    """Gestión simple de inventario por SKU."""
+
+    def __init__(self):
+        # mapeo sku -> cantidad
+        self.stock: Dict[str, int] = {}
+
+    def añadir(self, sku: str, cantidad: int):
+        if cantidad <= 0:
+            return
+        self.stock[sku] = self.stock.get(sku, 0) + cantidad
+        logging.info(f"Añadido al inventario: {sku} x{cantidad}")
+
+    def remover(self, sku: str, cantidad: int) -> bool:
+        """Remueve cantidad si disponible, devuelve True si OK."""
+        if cantidad <= 0:
+            return False
+        disponible = self.stock.get(sku, 0)
+        if disponible >= cantidad:
+            self.stock[sku] = disponible - cantidad
+            logging.info(f"Removido del inventario: {sku} x{cantidad}")
+            return True
+        else:
+            logging.warning(f"Stock insuficiente para {sku}: solicitado {cantidad}, disponible {disponible}")
+            return False
+
+    def cantidad(self, sku: str) -> int:
+        return self.stock.get(sku, 0)
+
+    def to_list(self):
+        return [{"sku": k, "cantidad": v} for k, v in self.stock.items()]
+
+
+# ---------------------------------------------------------------------
+# Managers (HR, Finanzas, Ventas, Producción, R&D, Compliance, Reports)
+# ---------------------------------------------------------------------
+
+class HRManager:
+    """Gestión de recursos humanos: contratación, despido y reportes."""
+
+    def __init__(self):
+        self.empleados: List[Empleado] = []
+
+    def contratar(self, nombre: str, rol: str, salario_anual: float) -> Empleado:
+        nuevo_id = f"E{str(uuid.uuid4())[:8].upper()}"
+        empleado = Empleado(nuevo_id, nombre, rol, salario_anual)
+        self.empleados.append(empleado)
+        logging.info(f"Contratado: {empleado.id} - {empleado.nombre} - {empleado.rol}")
+        return empleado
+
+    def listar_activos(self) -> List[Empleado]:
+        return [e for e in self.empleados if e.activo]
+
+    def buscar_por_id(self, id_: str) -> Optional[Empleado]:
+        for e in self.empleados:
+            if e.id == id_:
+                return e
+        return None
+
+    def pagar_salarios_mensual(self) -> float:
+        """Calcula y devuelve el coste mensual en salarios."""
+        activos = self.listar_activos()
+        total = sum(e.salario_anual / 12.0 for e in activos)
+        logging.info(f"Pago de salarios mensual calculado: {total:.2f}")
+        return total
+
+    def exportar_csv(self, archivo: str):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["id", "nombre", "rol", "salario_anual", "fecha_ingreso", "activo"])
+            writer.writeheader()
+            for e in self.empleados:
+                writer.writerow(e.to_dict())
+        logging.info(f"Exportado CSV de empleados: {archivo}")
+
+
+class FinanceManager:
+    """Gestión financiera: ingresos, gastos, balance, inversiones."""
+
+    def __init__(self, caja_inicial: float = 1_000_000_000.0):
+        # caja es el capital disponible
+        self.caja = float(caja_inicial)
+        # registro simple de transacciones: lista de tuplas (fecha, tipo, monto, descripcion)
+        self.transacciones: List[Dict] = []
+        logging.info(f"Finanzas inicializadas con caja: {self.caja:.2f}")
+
+    def registrar_ingreso(self, monto: float, descripcion: str = ""):
+        self.caja += monto
+        self.transacciones.append({"fecha": datetime.date.today().isoformat(), "tipo": "ingreso", "monto": monto, "desc": descripcion})
+        logging.info(f"Ingreso registrado: {monto:.2f} - {descripcion}")
+
+    def registrar_gasto(self, monto: float, descripcion: str = ""):
+        self.caja -= monto
+        self.transacciones.append({"fecha": datetime.date.today().isoformat(), "tipo": "gasto", "monto": monto, "desc": descripcion})
+        logging.info(f"Gasto registrado: {monto:.2f} - {descripcion}")
+
+    def obtener_balance(self) -> float:
+        return self.caja
+
+    def resumen_financiero(self) -> Dict:
+        ingresos = sum(t["monto"] for t in self.transacciones if t["tipo"] == "ingreso")
+        gastos = sum(t["monto"] for t in self.transacciones if t["tipo"] == "gasto")
+        balance = self.caja
+        logging.info("Generado resumen financiero")
+        return {"ingresos": ingresos, "gastos": gastos, "balance": balance}
+
+    def exportar_transacciones(self, archivo: str):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["fecha", "tipo", "monto", "desc"])
+            writer.writeheader()
+            for t in self.transacciones:
+                writer.writerow(t)
+        logging.info(f"Exportadas transacciones: {archivo}")
+
+
+class ProductManager:
+    """Gestión de catálogo de productos y precios."""
+
+    def __init__(self):
+        self.productos: Dict[str, Producto] = {}
+
+    def crear_producto(self, nombre: str, costo_produccion: float, precio_venta: float, unidad: str = "unidad") -> Producto:
+        sku = f"P{str(uuid.uuid4())[:8].upper()}"
+        prod = Producto(sku, nombre, costo_produccion, precio_venta, unidad)
+        self.productos[sku] = prod
+        logging.info(f"Producto creado: {sku} - {nombre}")
+        return prod
+
+    def listar_productos(self) -> List[Producto]:
+        return list(self.productos.values())
+
+    def obtener_producto(self, sku: str) -> Optional[Producto]:
+        return self.productos.get(sku)
+
+    def exportar_catalogo(self, archivo: str):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["sku", "nombre", "costo_produccion", "precio_venta", "unidad", "fecha_creacion"])
+            writer.writeheader()
+            for p in self.productos.values():
+                writer.writerow(p.to_dict())
+        logging.info(f"Exportado catálogo de productos: {archivo}")
+
+
+class ProductionManager:
+    """Gestión de producción/manufactura que consume caja y aumenta inventario."""
+
+    def __init__(self, inventory: Inventario, finance: FinanceManager, product_manager: ProductManager):
+        self.inventory = inventory
+        self.finance = finance
+        self.product_manager = product_manager
+
+    def fabricar(self, sku: str, cantidad: int) -> bool:
+        """Fabrica unidades de un SKU, gastando según el costo de producción."""
+        prod = self.product_manager.obtener_producto(sku)
+        if not prod:
+            logging.error(f"Intento de fabricar producto inexistente: {sku}")
+            return False
+        costo_total = prod.costo_produccion * cantidad
+        if self.finance.obtener_balance() < costo_total:
+            logging.warning(f"Fondos insuficientes para fabricar {cantidad}x{sku}")
+            return False
+        # se consume caja y se añade inventario
+        self.finance.registrar_gasto(costo_total, f"Fabricación {cantidad}x{sku}")
+        self.inventory.añadir(sku, cantidad)
+        logging.info(f"Fabricadas {cantidad} unidades de {sku} costo total {costo_total:.2f}")
+        return True
+
+
+class SalesManager:
+    """Gestión de ventas: intentar vender desde inventario y registrar ingreso."""
+
+    def __init__(self, inventory: Inventario, finance: FinanceManager, product_manager: ProductManager):
+        self.inventory = inventory
+        self.finance = finance
+        self.product_manager = product_manager
+        # historial de ventas simples
+        self.ventas: List[Dict] = []
+
+    def vender(self, sku: str, cantidad: int, cliente: str = "Cliente Corporativo"):
+        """Vende una cantidad de SKU si hay stock; registra ingreso y reduce inventario."""
+        prod = self.product_manager.obtener_producto(sku)
+        if not prod:
+            logging.error(f"Venta fallida: SKU no encontrado {sku}")
+            return False
+        if self.inventory.remover(sku, cantidad):
+            ingreso = prod.precio_venta * cantidad
+            self.finance.registrar_ingreso(ingreso, f"Venta {cantidad}x{sku} a {cliente}")
+            venta = {"fecha": datetime.date.today().isoformat(), "sku": sku, "cantidad": cantidad, "monto": ingreso, "cliente": cliente}
+            self.ventas.append(venta)
+            logging.info(f"Venta registrada: {venta}")
+            return True
+        else:
+            logging.warning(f"Venta fallida por stock insuficiente: {sku} x{cantidad}")
+            return False
+
+    def ventas_resumen(self) -> Dict:
+        montos = [v["monto"] for v in self.ventas]
+        total = sum(montos) if montos else 0.0
+        count = len(self.ventas)
+        promedio = statistics.mean(montos) if montos else 0.0
+        return {"total": total, "count": count, "promedio": promedio}
+
+    def exportar_ventas_csv(self, archivo: str):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["fecha", "sku", "cantidad", "monto", "cliente"])
+            writer.writeheader()
+            for v in self.ventas:
+                writer.writerow(v)
+        logging.info(f"Exportadas ventas a CSV: {archivo}")
+
+
+class RnDManager:
+    """Gestión de investigación y desarrollo: proyectos, inversión y resultados."""
+
+    def __init__(self, finance: FinanceManager, product_manager: ProductManager):
+        self.proyectos: List[Dict] = []  # lista de proyectos con estado
+        self.finance = finance
+        self.product_manager = product_manager
+
+    def iniciar_proyecto(self, nombre: str, presupuesto: float, duracion_meses: int = 6):
+        """Inicia un proyecto de I+D con presupuesto comprometido."""
+        if self.finance.obtener_balance() < presupuesto:
+            logging.warning("Fondos insuficientes para iniciar proyecto R&D")
+            return None
+        proyecto = {
+            "id": f"R{str(uuid.uuid4())[:6].upper()}",
+            "nombre": nombre,
+            "presupuesto": presupuesto,
+            "duracion_meses": duracion_meses,
+            "meses_transcurridos": 0,
+            "activo": True,
+            "resultado": None
+        }
+        self.proyectos.append(proyecto)
+        # reservar el presupuesto como gasto (investigación)
+        self.finance.registrar_gasto(presupuesto, f"Inversión R&D: {nombre}")
+        logging.info(f"Proyecto R&D iniciado: {proyecto['id']} - {nombre}")
+        return proyecto
+
+    def avanzar_mes(self):
+        """Simula avance de un mes en todos los proyectos y eventualmente produce resultados."""
+        for p in self.proyectos:
+            if not p["activo"]:
+                continue
+            p["meses_transcurridos"] += 1
+            if p["meses_transcurridos"] >= p["duracion_meses"]:
+                # proyecto finaliza
+                p["activo"] = False
+                # resultado aleatorio: éxito con probabilidad relacionada al presupuesto
+                prob_exito = min(0.9, 0.1 + p["presupuesto"] / 1_000_000.0)
+                exito = random.random() < prob_exito
+                if exito:
+                    # generar producto asociado con margen premium
+                    nombre_producto = f"{p['nombre']} Tech"
+                    costo = random.uniform(0.3, 0.7) * p["presupuesto"] / max(1, p["duracion_meses"])
+                    precio = costo * random.uniform(1.5, 4.0)
+                    prod = self.product_manager.crear_producto(nombre_producto, costo, precio)
+                    p["resultado"] = {"exito": True, "producto": prod.sku}
+                    logging.info(f"Proyecto {p['id']} finalizó con éxito y creó producto {prod.sku}")
+                else:
+                    p["resultado"] = {"exito": False}
+                    logging.info(f"Proyecto {p['id']} finalizó sin éxito")
+        logging.info("Avance mensual de R&D completado")
+
+    def listar_proyectos(self) -> List[Dict]:
+        return self.proyectos
+
+
+class ComplianceManager:
+    """Gestión de cumplimiento normativo y políticas internas."""
+
+    def __init__(self):
+        self.politicas: List[str] = [
+            "Cambio de contraseña cada 90 días",
+            "Autenticación multifactor para accesos remotos",
+            "Cifrado de datos sensibles",
+            "Registro y monitorización de accesos"
+        ]
+        self.incidentes_reportados: List[Dict] = []
+
+    def agregar_politica(self, texto: str):
+        self.politicas.append(texto)
+        logging.info(f"Política agregada: {texto}")
+
+    def reportar_incidente(self, descripcion: str, criticidad: str = "Media"):
+        incidente = {"fecha": datetime.date.today().isoformat(), "descripcion": descripcion, "criticidad": criticidad}
+        self.incidentes_reportados.append(incidente)
+        logging.warning(f"Incidente reportado: {incidente}")
+
+    def listar_politicas(self) -> List[str]:
+        return self.politicas
+
+    def exportar_incidentes(self, archivo: str):
+        with open(archivo, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["fecha", "descripcion", "criticidad"])
+            writer.writeheader()
+            for inc in self.incidentes_reportados:
+                writer.writerow(inc)
+        logging.info(f"Exportados incidentes: {archivo}")
+
+
+class ReportManager:
+    """Generador de reportes agregados para la junta directiva."""
+
+    def __init__(self, finance: FinanceManager, hr: HRManager, sales: SalesManager,
+                 prod_mgr: ProductManager, rd: RnDManager, compliance: ComplianceManager, inventory: Inventario):
+        self.finance = finance
+        self.hr = hr
+        self.sales = sales
+        self.prod_mgr = prod_mgr
+        self.rd = rd
+        self.compliance = compliance
+        self.inventory = inventory
+
+    def generar_reporte_ejecutivo(self) -> str:
+        """Genera un reporte ejecutivo en texto plano."""
+        resumen_fin = self.finance.resumen_financiero()
+        total_empleados = len(self.hr.listar_activos())
+        ventas = self.sales.ventas_resumen()
+        productos = len(self.prod_mgr.listar_productos())
+        proyectos_rd = len(self.rd.listar_proyectos())
+        incidentes = len(self.compliance.incidentes_reportados)
+        inventario_total = sum(self.inventory.stock.values())
+
+        reporte = (
+            f"REPORTE EJECUTIVO - {datetime.date.today().isoformat()}\n"
+            f"-----------------------------------------\n"
+            f"Balance (Caja): ${resumen_fin['balance']:,.2f}\n"
+            f"Ingresos totales: ${resumen_fin['ingresos']:,.2f}\n"
+            f"Gastos totales: ${resumen_fin['gastos']:,.2f}\n"
+            f"Empleados activos: {total_empleados}\n"
+            f"Ventas: {ventas['count']} transacciones, total ${ventas['total']:,.2f}, promedio ${ventas['promedio']:,.2f}\n"
+            f"Productos en catálogo: {productos}\n"
+            f"Proyectos R&D: {proyectos_rd}\n"
+            f"Incidentes reportados: {incidentes}\n"
+            f"Unidades en inventario: {inventario_total}\n"
+            f"-----------------------------------------\n"
+            f"Últimos 5 transacciones financieras:\n"
+        )
+        ultimas = self.finance.transacciones[-5:]
+        for t in ultimas:
+            reporte += f"- {t['fecha']}: {t['tipo']} ${t['monto']:,.2f} ({t['desc']})\n"
+        reporte += "\nPolíticas (resumen):\n"
+        for p in self.compliance.politicas:
+            reporte += f"- {p}\n"
+        logging.info("Generado reporte ejecutivo")
+        return reporte
+
+    def exportar_reporte_txt(self, archivo: str):
+        reporte = self.generar_reporte_ejecutivo()
+        with open(archivo, "w", encoding="utf-8") as f:
+            f.write(reporte)
+        logging.info(f"Reporte exportado a {archivo}")
+
+
+# ---------------------------------------------------------------------
+# Compañía: encapsula todos los managers y ofrece una API de simulación
+# ---------------------------------------------------------------------
+
+class Company:
+    """Clase agregadora que representa la firma multimillonaria."""
+
+    def __init__(self, nombre: str = "Grupo TitanCorp"):
+        self.nombre = nombre
+        # componentes centrales
+        self.hr = HRManager()
+        self.finance = FinanceManager(caja_inicial=2_500_000_000.0)  # caja inicial multimillonaria
+        self.inventory = Inventario()
+        self.product_mgr = ProductManager()
+        self.production = ProductionManager(self.inventory, self.finance, self.product_mgr)
+        self.sales = SalesManager(self.inventory, self.finance, self.product_mgr)
+        self.rd = RnDManager(self.finance, self.product_mgr)
+        self.compliance = ComplianceManager()
+        self.reporter = ReportManager(self.finance, self.hr, self.sales, self.product_mgr, self.rd, self.compliance, self.inventory)
+        logging.info(f"Compañía '{self.nombre}' inicializada")
+
+        # Poblado inicial con empleados y productos de ejemplo
+        self._seed_initial_data()
+
+    def _seed_initial_data(self):
+        # Contratar ejecutivos clave
+        self.hr.contratar("Ana Torres", "CEO", 1_200_000.0)
+        self.hr.contratar("Luis Pérez", "CTO", 900_000.0)
+        self.hr.contratar("María Gómez", "CISO", 800_000.0)
+        # crear algunos productos emblemáticos
+        p1 = self.product_mgr.crear_producto("HyperCar X", 150_000.0, 750_000.0, unidad="vehículo")
+        p2 = self.product_mgr.crear_producto("AeroJet One", 50_000_000.0, 250_000_000.0, unidad="aeronave")
+        p3 = self.product_mgr.crear_producto("AutoAssist AI", 10_000.0, 50_000.0, unidad="licencia")
+        # fabricar stock inicial
+        self.production.fabricar(p1.sku, 5)
+        self.production.fabricar(p2.sku, 1)
+        self.production.fabricar(p3.sku, 1000)
+        logging.info("Datos iniciales sembrados")
+
+    # Metodos operativos
+    def contratar_empleado(self, nombre: str, rol: str, salario: float):
+        return self.hr.contratar(nombre, rol, salario)
+
+    def despedir_empleado(self, id_: str):
+        em = self.hr.buscar_por_id(id_)
+        if em:
+            em.despedir()
+            logging.info(f"Empleado despedido via Company API: {id_}")
+            return True
+        return False
+
+    def iniciar_proyecto_rd(self, nombre: str, presupuesto: float, duracion: int = 6):
+        return self.rd.iniciar_proyecto(nombre, presupuesto, duracion)
+
+    def fabricar_producto(self, sku: str, cantidad: int):
+        return self.production.fabricar(sku, cantidad)
+
+    def vender_producto(self, sku: str, cantidad: int, cliente: str = "Cliente VIP"):
+        return self.sales.vender(sku, cantidad, cliente)
+
+    def reportar_incidente(self, descripcion: str, criticidad: str = "Media"):
+        self.compliance.reportar_incidente(descripcion, criticidad)
+
+    def avanzar_periodo_mensual(self):
+        """Simula el avance de un mes en las operaciones de la empresa."""
+        # 1. Pagar salarios
+        coste_salarios = self.hr.pagar_salarios_mensual()
+        self.finance.registrar_gasto(coste_salarios, "Pago de salarios mensual")
+        # 2. Avanzar R&D
+        self.rd.avanzar_mes()
+        # 3. Proyecciones de ventas (venta aleatoria según inventario)
+        productos = list(self.product_mgr.productos.values())
+        if productos:
+            # simular ventas de varios skus
+            for _ in range(random.randint(1, 6)):
+                prod = random.choice(productos)
+                # demanda aleatoria modelada por precio (menos demanda cuando más caro)
+                max_qty = max(1, int(1000 / max(1, prod.precio_venta)))
+                cantidad = random.randint(1, min(max_qty, self.inventory.cantidad(prod.sku)))
+                if cantidad > 0:
+                    cliente = random.choice(["Cliente VIP", "Distribuidor", "Gobierno", "Operador Aéreo"])
+                    self.sales.vender(prod.sku, cantidad, cliente)
+        # 4. Mantener costos operativos fijos (estandar)
+        gastos_operativos = random.uniform(1_000_000.0, 10_000_000.0)
+        self.finance.registrar_gasto(gastos_operativos, "Gastos operativos mensuales")
+        logging.info(f"Periodo mensual avanzado: gastos operativos {gastos_operativos:.2f}")
+
+    def resumen_empresa(self) -> str:
+        return self.reporter.generar_reporte_ejecutivo()
+
+
+# ---------------------------------------------------------------------
+# Interfaz de usuario minimalista (consola) para interactuar con Company
+# ---------------------------------------------------------------------
+
+def clear_console():
+    if sys.platform.startswith("win"):
+        os.system("cls")
+    else:
+        os.system("clear")
+
+
+def menu_principal():
+    print("=" * 70)
+    print("FIRMA MULTIMILLONARIA - SIMULADOR DE OPERACIONES")
+    print("=" * 70)
+    print("1. Ver resumen ejecutivo")
+    print("2. Listar productos")
+    print("3. Fabricar producto")
+    print("4. Vender producto")
+    print("5. Iniciar proyecto R&D")
+    print("6. Avanzar un mes (simulación)")
+    print("7. Contratar empleado")
+    print("8. Despedir empleado")
+    print("9. Reportar incidente de cumplimiento")
+    print("10. Exportar datos (CSV / TXT)")
+    print("11. Ver inventario")
+    print("12. Ver empleados")
+    print("13. Salir")
+    print("=" * 70)
+
+
+def export_menu(comp: Company):
+    print("EXPORTAR DATOS")
+    print("1. Exportar empleados CSV")
+    print("2. Exportar catálogo de productos CSV")
+    print("3. Exportar transacciones financieras CSV")
+    print("4. Exportar ventas CSV")
+    print("5. Exportar report ejecutivo TXT")
+    print("6. Exportar incidentes CSV")
+    print("0. Volver")
+    choice = input("Selecciona opción: ").strip()
+    if choice == "1":
+        archivo = input("Nombre de archivo (empleados.csv): ").strip() or "empleados.csv"
+        comp.hr.exportar_csv(archivo)
+        print("Empleados exportados.")
+    elif choice == "2":
+        archivo = input("Nombre de archivo (productos.csv): ").strip() or "productos.csv"
+        comp.product_mgr.exportar_catalogo(archivo)
+        print("Catálogo exportado.")
+    elif choice == "3":
+        archivo = input("Nombre de archivo (transacciones.csv): ").strip() or "transacciones.csv"
+        comp.finance.exportar_transacciones(archivo)
+        print("Transacciones exportadas.")
+    elif choice == "4":
+        archivo = input("Nombre de archivo (ventas.csv): ").strip() or "ventas.csv"
+        comp.sales.exportar_ventas_csv(archivo)
+        print("Ventas exportadas.")
+    elif choice == "5":
+        archivo = input("Nombre de archivo (reporte.txt): ").strip() or "reporte.txt"
+        comp.reporter.exportar_reporte_txt(archivo)
+        print("Reporte exportado.")
+    elif choice == "6":
+        archivo = input("Nombre de archivo (incidentes.csv): ").strip() or "incidentes.csv"
+        comp.compliance.exportar_incidentes(archivo)
+        print("Incidentes exportados.")
+    else:
+        print("Volviendo...")
+
+
+def main_loop():
+    comp = Company()
+    while True:
+        menu_principal()
+        opcion = input("Selecciona una opción: ").strip()
+        clear_console()
+        if opcion == "1":
+            print(comp.resumen_empresa())
+            input("Presiona Enter para continuar...")
+        elif opcion == "2":
+            productos = comp.product_mgr.listar_productos()
+            print("CATÁLOGO DE PRODUCTOS")
+            for p in productos:
+                print(f"{p.sku} | {p.nombre} | Costo: ${p.costo_produccion:,.2f} | Precio venta: ${p.precio_venta:,.2f} | Unidad: {p.unidad}")
+            input("Presiona Enter para continuar...")
+        elif opcion == "3":
+            sku = input("SKU a fabricar: ").strip()
+            cantidad = int(input("Cantidad: ").strip() or "0")
+            ok = comp.fabricar_producto(sku, cantidad)
+            if ok:
+                print("Fabricación completada.")
+            else:
+                print("Fabricación fallida. Revisa fondos o SKU.")
+            input("Presiona Enter para continuar...")
+        elif opcion == "4":
+            sku = input("SKU a vender: ").strip()
+            cantidad = int(input("Cantidad: ").strip() or "0")
+            cliente = input("Nombre cliente: ").strip() or "Cliente VIP"
+            ok = comp.vender_producto(sku, cantidad, cliente)
+            if ok:
+                print("Venta registrada.")
+            else:
+                print("Venta fallida.")
+            input("Presiona Enter para continuar...")
+        elif opcion == "5":
+            nombre = input("Nombre proyecto R&D: ").strip()
+            presupuesto = float(input("Presupuesto (USD): ").strip() or "0")
+            duracion = int(input("Duración (meses): ").strip() or "6")
+            proj = comp.iniciar_proyecto_rd(nombre, presupuesto, duracion)
+            if proj:
+                print(f"Proyecto iniciado: {proj['id']}")
+            else:
+                print("No se pudo iniciar el proyecto (fondos insuficientes).")
+            input("Presiona Enter para continuar...")
+        elif opcion == "6":
+            meses = int(input("¿Avanzar cuántos meses? ").strip() or "1")
+            for _ in range(meses):
+                comp.avanzar_periodo_mensual()
+            print(f"Avanzado {meses} meses.")
+            input("Presiona Enter para continuar...")
+        elif opcion == "7":
+            nombre = input("Nombre empleado: ").strip()
+            rol = input("Rol: ").strip()
+            salario = float(input("Salario anual (USD): ").strip() or "50000")
+            emp = comp.contratar_empleado(nombre, rol, salario)
+            print(f"Empleado contratado: {emp.id} - {emp.nombre}")
+            input("Presiona Enter para continuar...")
+        elif opcion == "8":
+            emp_id = input("ID del empleado a despedir: ").strip()
+            ok = comp.despedir_empleado(emp_id)
+            if ok:
+                print("Empleado despedido.")
+            else:
+                print("Empleado no encontrado.")
+            input("Presiona Enter para continuar...")
+        elif opcion == "9":
+            desc = input("Descripción del incidente: ").strip()
+            criticidad = input("Criticidad (Baja/Media/Alta): ").strip() or "Media"
+            comp.reportar_incidente(desc, criticidad)
+            print("Incidente reportado.")
+            input("Presiona Enter para continuar...")
+        elif opcion == "10":
+            export_menu(comp)
+            input("Presiona Enter para continuar...")
+        elif opcion == "11":
+            print("INVENTARIO")
+            for sku, qty in comp.inventory.stock.items():
+                prod = comp.product_mgr.obtener_producto(sku)
+                nombre = prod.nombre if prod else "Producto desconocido"
+                print(f"{sku} | {nombre} | Cantidad: {qty}")
+            input("Presiona Enter para continuar...")
+        elif opcion == "12":
+            print("EMPLEADOS ACTIVOS")
+            for e in comp.hr.listar_activos():
+                print(f"{e.id} | {e.nombre} | {e.rol} | Salario anual: ${e.salario_anual:,.2f}")
+            input("Presiona Enter para continuar...")
+        elif opcion == "13":
+            print("Saliendo del simulador. Guardando log y datos mínimos.")
+            # guardados minimalistas antes de salir
+            comp.hr.exportar_csv("empleados_antes_de_cierre.csv")
+            comp.product_mgr.exportar_catalogo("productos_antes_de_cierre.csv")
+            comp.finance.exportar_transacciones("transacciones_antes_de_cierre.csv")
+            print("Datos exportados. Hasta luego.")
+            break
+        else:
+            print("Opción no válida. Intenta de nuevo.")
+            input("Presiona Enter para continuar...")
+
+
+# ---------------------------------------------------------------------
+# Si se ejecuta el archivo, iniciar la interfaz de consola
+# ---------------------------------------------------------------------
+if __name__ == "__main__":
+    try:
+        main_loop()
+    except KeyboardInterrupt:
+        print("\nSimulador interrumpido por usuario.")
+        logging.info("Simulador interrumpido por usuario (KeyboardInterrupt).")
