@@ -1,0 +1,113 @@
+mport tkinter as tk
+from tkinter import messagebox
+from tkinter import font as tkfont
+
+class TaskManagerApp(tk.Tk):
+    """Aplicación de lista de tareas con atajos de teclado."""
+    def __init__(self):
+        super().__init__()
+        self.title("Lista de Tareas - Atajos de Teclado")
+        self.geometry("420x520")
+        self.resizable(False, False)
+
+        # Fuente normal y con tachado para tareas completadas
+        self.font_normal = tkfont.Font(family="Arial", size=12)
+        self.font_done = tkfont.Font(family="Arial", size=12, overstrike=1)
+
+        # Estructura interna: lista de dicts {'text': str, 'done': bool}
+        self.tareas = []
+
+        # UI: entrada y botones
+        frame_top = tk.Frame(self, padx=10, pady=10)
+        frame_top.pack(fill="x")
+
+        tk.Label(frame_top, text="Nueva tarea:", font=("Arial", 11)).pack(anchor="w")
+        self.entry = tk.Entry(frame_top, font=self.font_normal)
+        self.entry.pack(fill="x", pady=(4,8))
+        self.entry.focus_set()
+        self.entry.bind("<Return>", lambda e: self.agregar_tarea())
+
+        frame_buttons = tk.Frame(frame_top)
+        frame_buttons.pack(fill="x", pady=(0,6))
+        tk.Button(frame_buttons, text="Añadir (Enter)", command=self.agregar_tarea, bg="#2ecc71", fg="white").pack(side="left", padx=4)
+        tk.Button(frame_buttons, text="Marcar como completada (C)", command=self.marcar_completada).pack(side="left", padx=4)
+        tk.Button(frame_buttons, text="Eliminar (D / Delete)", command=self.eliminar_tarea, bg="#e74c3c", fg="white").pack(side="left", padx=4)
+
+        # Listbox con scrollbar
+        frame_list = tk.Frame(self, padx=10, pady=6)
+        frame_list.pack(fill="both", expand=True)
+        self.listbox = tk.Listbox(frame_list, font=self.font_normal, activestyle="none", selectmode=tk.SINGLE)
+        self.listbox.pack(side="left", fill="both", expand=True)
+        scrollbar = tk.Scrollbar(frame_list, command=self.listbox.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.listbox.configure(yscrollcommand=scrollbar.set)
+
+        # Eventos de doble clic para alternar completado
+        self.listbox.bind("<Double-Button-1>", lambda e: self.marcar_completada())
+
+        # Atajos globales
+        self.bind_all("<Escape>", lambda e: self.salir())
+        # Letras en minúscula y mayúscula, y tecla Delete
+        self.bind_all("<c>", lambda e: self.marcar_completada())
+        self.bind_all("<C>", lambda e: self.marcar_completada())
+        self.bind_all("<d>", lambda e: self.eliminar_tarea())
+        self.bind_all("<D>", lambda e: self.eliminar_tarea())
+        self.bind_all("<Delete>", lambda e: self.eliminar_tarea())
+
+        # Pie de página con instrucciones
+        footer = tk.Label(self, text="Atajos: Enter=Agregar | C=Marcar | D/Delete=Eliminar | Esc=Salir",
+                          font=("Arial", 9), fg="#555")
+        footer.pack(side="bottom", pady=8)
+
+    # --- Lógica de tareas ---
+    def agregar_tarea(self):
+        texto = self.entry.get().strip()
+        if not texto:
+            messagebox.showwarning("Campo vacío", "Escribe una tarea antes de añadir.")
+            return
+        self.tareas.append({"text": texto, "done": False})
+        self.entry.delete(0, tk.END)
+        self.actualizar_listbox()
+
+    def marcar_completada(self):
+        sel = self.listbox.curselection()
+        if not sel:
+            messagebox.showinfo("Sin selección", "Selecciona una tarea para marcar como completada.")
+            return
+        idx = sel[0]
+        self.tareas[idx]["done"] = not self.tareas[idx]["done"]
+        self.actualizar_listbox()
+        # mantener la selección en el mismo índice
+        self.listbox.selection_set(idx)
+        self.listbox.activate(idx)
+
+    def eliminar_tarea(self):
+        sel = self.listbox.curselection()
+        if not sel:
+            messagebox.showinfo("Sin selección", "Selecciona una tarea para eliminar.")
+            return
+        idx = sel[0]
+        tarea = self.tareas[idx]
+        if messagebox.askyesno("Confirmar eliminación", f"Eliminar tarea:\n\n{tarea['text']}"):
+            del self.tareas[idx]
+            self.actualizar_listbox()
+
+    def actualizar_listbox(self):
+        self.listbox.delete(0, tk.END)
+        for i, t in enumerate(self.tareas):
+            texto = ("✔ " if t["done"] else "  ") + t["text"]
+            self.listbox.insert(tk.END, texto)
+            # aplicar estilo visual según estado
+            if t["done"]:
+                self.listbox.itemconfig(i, fg="gray", font=self.font_done)
+            else:
+                self.listbox.itemconfig(i, fg="black", font=self.font_normal)
+
+    def salir(self):
+        if messagebox.askyesno("Salir", "¿Deseas salir de la aplicación?"):
+            self.destroy()
+
+
+if __name__ == "__main__":
+    app = TaskManagerApp()
+    app.mainloop()
